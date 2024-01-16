@@ -1,14 +1,67 @@
 import collections
+import json
 import numpy as np
 import os
 from openai import OpenAI
 import pandas as pd
+import PyPDF2
 
 client = OpenAI(api_key=os.getenv("OPENAIKEY"))
 global FILE_NAME
 FILE_NAME = 'tgg.parquet'
 EMBEDDINGS_MODEL = "text-embedding-ada-002"
 CHAT_COMPLETIONS_MODEL = "gpt-3.5-turbo-0301"
+
+def generate_embeddings():
+
+    with open('pages.json') as f:
+        pages = json.load(f)
+    for i, page in enumerate(pages):
+        # Generate embeddings
+        response = client.embeddings.create(
+            model=EMBEDDINGS_MODEL,
+            input=page['page']
+        )
+        embedding = response.data[0].embedding
+
+        # add the embeddings to the pages array
+        pages[i]['embedding'] = embedding
+
+    with open('pages_with_embeddings.json', 'w') as f:
+        json.dump(pages, f, indent=4, ensure_ascii=False)
+
+def pdf_to_json_format(pdf_file_path):
+    # Open the PDF file
+    with open(pdf_file_path, 'rb') as file:
+        pdf_reader = PyPDF2.PdfReader(file)
+        num_pages = len(pdf_reader.pages)
+
+        # Initialize the list to hold each page's data
+        pages_data = []
+
+        # Extract text from each page and format it
+        for page_number in range(num_pages):
+            page_obj = pdf_reader.pages[page_number]
+
+            page_data = {
+                "page": page_obj.extract_text(),
+                "page_number": page_number + 1
+            }
+
+            pages_data.append(page_data)
+
+    with open('pages.json', 'w') as f:
+        json.dump(pages_data, f, indent=4, ensure_ascii=False)
+
+def create_parquet_file():
+    json_file = 'pages_with_embeddings.json'
+    parquet_file = 'tgg.parquet'
+
+    # Read the JSON file into a Pandas DataFrame
+    df = pd.read_json(json_file)
+
+    # Write the DataFrame to Parquet format
+    df.to_parquet(parquet_file)
 
 def parse_dataset():
     """
@@ -29,7 +82,7 @@ def parse_dataset():
     tgg_file = pd.read_parquet(FILE_NAME)
     print("Converting to np array...")
     page_numbers_list = tgg_file['page_number'].tolist()
-    chapter_number_list = tgg_file['chapter'].tolist()
+    # chapter_number_list = tgg_file['chapter'].tolist()
     page_text_corpus = tgg_file['page'].tolist()
     page_text_corpus_embeddings = np.array(tgg_file['embedding'].tolist(), dtype=float)
     print("done converting to np array")
@@ -37,11 +90,13 @@ def parse_dataset():
     ['page_text_corpus', 
     'page_text_corpus_embeddings', 
     'page_numbers_list',
-    'chapter_number_list'])(
+    # 'chapter_number_list'
+    ])(
         page_text_corpus, 
         page_text_corpus_embeddings, 
         page_numbers_list,
-        chapter_number_list)
+        # chapter_number_list
+        )
 
 def get_query_embedding_openai(prompt):
     """
@@ -72,13 +127,13 @@ def prepare_contexts(dataset):
     and each value is the corresponding embedding.
     """
     contexts = {}
-    for page_text, page_number, chapter_number, embedding in zip(
+    for page_text, page_number, embedding in zip(
         dataset.page_text_corpus, 
         dataset.page_numbers_list, 
-        dataset.chapter_number_list, 
+        # dataset.chapter_number_list, 
         dataset.page_text_corpus_embeddings
     ):
-        contexts[(page_text, page_number, chapter_number)] = embedding
+        contexts[(page_text, page_number)] = embedding
     return contexts
 
 def vector_similarity(x: list[float], y: list[float]) -> float:
@@ -125,11 +180,11 @@ def get_semantic_suggestions(prompt):
     )
     top_three = relevant_sections[:3]
     final = []
-    for _, (page_text, page_number, chapter_number) in top_three:
+    for _, (page_text, page_number) in top_three:
         final.append(
             {
                 'page': page_text,
-                'chapter_number': chapter_number,
+                # 'chapter_number': chapter_number,
                 'page_number': page_number
             })
     return final 
@@ -166,7 +221,7 @@ def construct_completions_prompt_exp(question):
     page_results = get_semantic_suggestions(question)
     page_composite_string = ""
     for page_result in page_results:
-        page_composite_string += f"'{page_result['page'].strip()}', (Chapter {page_result['chapter_number']}, Page {page_result['page_number']})\n"
+        page_composite_string += f"'{page_result['page'].strip()}', Page {page_result['page_number']})\n"
     edited_system_prompt = system_prompt.replace("*insert text*", page_composite_string)
     return {"user": edited_user_prompt, "system": edited_system_prompt}
 
