@@ -6,13 +6,13 @@ from openai import OpenAI
 import pandas as pd
 import PyPDF2
 
-client = OpenAI(api_key=os.getenv("OPENAIKEY"))
-global FILE_NAME
 FILE_NAME = 'tgg.parquet'
 EMBEDDINGS_MODEL = "text-embedding-ada-002"
 CHAT_COMPLETIONS_MODEL = "gpt-3.5-turbo-0301"
 
-def generate_embeddings():
+def generate_embeddings(key):
+
+    client = OpenAI(api_key=key)
 
     with open('pages.json') as f:
         pages = json.load(f)
@@ -78,14 +78,11 @@ def parse_dataset():
     >>> engine = parse_dataset()
     """
 
-    print("Loading embedding file...")
     tgg_file = pd.read_parquet(FILE_NAME)
-    print("Converting to np array...")
     page_numbers_list = tgg_file['page_number'].tolist()
     # chapter_number_list = tgg_file['chapter'].tolist()
     page_text_corpus = tgg_file['page'].tolist()
     page_text_corpus_embeddings = np.array(tgg_file['embedding'].tolist(), dtype=float)
-    print("done converting to np array")
     return collections.namedtuple('Engine', 
     ['page_text_corpus', 
     'page_text_corpus_embeddings', 
@@ -98,7 +95,7 @@ def parse_dataset():
         # chapter_number_list
         )
 
-def get_query_embedding_openai(prompt):
+def get_query_embedding_openai(prompt, key):
     """
     Generate a vector embedding for a given prompt using OpenAI's embeddings model.
 
@@ -108,7 +105,8 @@ def get_query_embedding_openai(prompt):
     Returns:
     - A numpy array representing the vector embedding for the input text.
     """
-    
+    client = OpenAI(api_key=key)
+
     response = client.embeddings.create(
         model=EMBEDDINGS_MODEL,
         input=prompt
@@ -158,7 +156,7 @@ def order_document_sections_by_query_similarity(query_embedding: str, contexts: 
     
     return document_similarities
 
-def get_semantic_suggestions(prompt):
+def get_semantic_suggestions(prompt, key):
     """
     Generate a list of semantic suggestions based on a given prompt.
 
@@ -173,7 +171,7 @@ def get_semantic_suggestions(prompt):
             * page_number: an integer representing the page number of the document section.
     """
     dataset_with_embeddings = parse_dataset()
-    query_embedding = np.array(get_query_embedding_openai(prompt), dtype=float)
+    query_embedding = np.array(get_query_embedding_openai(prompt, key), dtype=float)
     relevant_sections = order_document_sections_by_query_similarity(
         query_embedding, 
         prepare_contexts(dataset=dataset_with_embeddings)
@@ -190,7 +188,7 @@ def get_semantic_suggestions(prompt):
     return final 
 
 # experimental version of the prompt construction function
-def construct_completions_prompt_exp(question):
+def construct_completions_prompt_exp(question, key):
     """
     Construct a prompt for OpenAI's chatbot model that simulates a book research assistance scenario.
 
@@ -218,7 +216,7 @@ def construct_completions_prompt_exp(question):
     """
     edited_user_prompt = user_prompt.replace("*insert question*", question)
     # on the next line write code similar to the previous line but for the "insert text" part
-    page_results = get_semantic_suggestions(question)
+    page_results = get_semantic_suggestions(question, key)
     page_composite_string = ""
     for page_result in page_results:
         page_composite_string += f"'{page_result['page'].strip()}', Page {page_result['page_number']})\n"
@@ -226,7 +224,7 @@ def construct_completions_prompt_exp(question):
     return {"user": edited_user_prompt, "system": edited_system_prompt}
 
 # experimental version of the answer function
-def get_answer_exp(prompt_obj):
+def get_answer_exp(prompt_obj, key):
     """
     Generate an answer to a prompt using OpenAI's ChatGPT model.
 
@@ -239,7 +237,8 @@ def get_answer_exp(prompt_obj):
     Returns:
     - A string representing the answer to the prompt.
     """
-    
+    client = OpenAI(api_key=key)
+
     response = client.chat.completions.create(
         messages=[
             {
