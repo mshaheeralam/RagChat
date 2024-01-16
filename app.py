@@ -27,8 +27,8 @@ def upload():
         print(traceback.format_exc())
 
 def main():
-    with st.expander("State"):
-        st.session_state
+    # with st.expander("State"):
+    #     st.session_state
 
     try:
         if 'api_key' not in st.session_state:
