@@ -1,19 +1,14 @@
-# package the semantic search into an API with front end
-# set up a flask app below
-
 import collections
-from flask import Flask, render_template, request
-import openai
-import pandas as pd
 import numpy as np
+import os
+from openai import OpenAI
+import pandas as pd
 
-
+client = OpenAI(api_key=os.getenv("OPENAIKEY"))
 global FILE_NAME
 FILE_NAME = 'tgg.parquet'
 EMBEDDINGS_MODEL = "text-embedding-ada-002"
 CHAT_COMPLETIONS_MODEL = "gpt-3.5-turbo-0301"
-openai.api_key = "" #Enter your OPENAI API KEY!!
-
 
 def parse_dataset():
     """
@@ -58,11 +53,12 @@ def get_query_embedding_openai(prompt):
     Returns:
     - A numpy array representing the vector embedding for the input text.
     """
-    response = openai.Embedding.create(
+    
+    response = client.embeddings.create(
         model=EMBEDDINGS_MODEL,
         input=prompt
     )
-    return response['data'][0]['embedding']
+    return response.data[0].embedding
 
 def prepare_contexts(dataset):
     """
@@ -188,7 +184,8 @@ def get_answer_exp(prompt_obj):
     Returns:
     - A string representing the answer to the prompt.
     """
-    return openai.ChatCompletion.create(
+    
+    response = client.chat.completions.create(
         messages=[
             {
                 "role": "user",
@@ -200,36 +197,6 @@ def get_answer_exp(prompt_obj):
             }
         ],
         model=CHAT_COMPLETIONS_MODEL,
-        temperature=0.8
-    )["choices"][0]["message"]["content"].strip(" \n")
+        temperature=0.8)
 
-def run_flask_app():
-    """
-    Runs a Flask app that listens for incoming HTTP requests at port 8080 on all network interfaces.
-    The app has two routes:
-    - '/' returns a rendered HTML template.
-    - '/ask' accepts a POST request with a 'question' parameter, constructs a completion prompt expression
-      using the question, passes the prompt expression to a function to retrieve an answer,
-      combines the prompt and answer into a string, and returns the combined string as JSON.
-    """
-    app = Flask(__name__,template_folder='Template')
-
-    @app.route('/')
-    def index():
-        return render_template('index.html')
-    
-    @app.route('/ask', methods=['POST'])
-    def ask():
-        question = request.form.get('question')
-        if question:
-            prompt_obj = construct_completions_prompt_exp(question) 
-            answer = get_answer_exp(prompt_obj)
-            combined_prompt = f"User: {prompt_obj['user']}\nSystem: {prompt_obj['system']}"
-            return {"answer": answer} 
-        else:
-              return render_template('index.html')
-    app.run(debug=False, host="0.0.0.0", port=8080, threaded=True)
-
-
-if __name__ == '__main__':
-    run_flask_app()
+    return response.choices[0].message.content
