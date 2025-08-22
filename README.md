@@ -1,18 +1,84 @@
-# Chatbot-using-OpenAI-API
- A chatbot which is trained on a text of the book and gives relevant answers when questioned related to the book. It uses Ada-002 embedding model to generate embeddings and for question answering it uses GPT 3.5 Turbo.
+# RagChat  
+Retrieval-Augmented Generation (RAG) chatbot that combines **OpenAI embeddings** with **vector search** to deliver context-aware responses.  
 
-Following are the steps to implement this system:
-1. Generate Embeddings (Using Ada-002)
-  - Run generate_embeddings.py. Remember to enter you OPENAI API Key in every py file.
-  - This should generate a file 'pages_with_embeddings.json'.
-  - If you are unable to run the generate_embeddings.py due to token limit, its totally fine.
-  - I have attached the embeddings that are generated with the name 'pages_with_embeddings.json'.
-  - Convert this json file into parquet which is done by running json_to_parquet.ipynb
- 
-2. Test Time
-  - Now you are good to go and run the main.py.
-  - Try to ask relevant questions to the book.
-  
-If you want to train it on a book of your choice, convert that book into proper json format like the files in repo and then you'll be able to run it!
+---
 
-<img width="770" alt="Screenshot 2023-06-13 at 9 32 05 PM" src="https://github.com/MaazK7/Chatbot-using-OpenAI-API/assets/115479920/4da87cb2-17dd-473f-b7ae-a1e7c30363ea">
+## 🚀 Overview  
+RagChat is an intelligent chatbot that retrieves relevant document sections before generating an answer using **GPT-3.5 Turbo**.  
+It uses **OpenAI’s Ada v2 embeddings** to encode queries and documents, storing them in a **vector database (FAISS)** for efficient similarity search.  
+
+This project demonstrates how **LLMs can be enhanced with external knowledge** while remaining fast, modular, and easy to extend.  
+
+---
+
+## ✨ Features  
+- **Retrieval-Augmented Generation** – Queries are matched against relevant document chunks.  
+- **OpenAI embeddings (Ada v2)** – High-quality semantic search.  
+- **GPT-3.5 Turbo integration** – Generates context-aware, coherent responses.  
+- **Vector database with FAISS** – Efficient similarity search at scale.  
+- **Extensible** – Swap in other embedding models or LLMs.  
+
+---
+
+## 🧩 Architecture  
+
+```text
+User Query ──> Embedding (OpenAI Ada v2) ──> Vector Search (FAISS) ──> Top-K Documents
+           └──────────────────────────────────────────────┘
+                                │
+                                v
+                     Context + Query ──> GPT-3.5 Turbo ──> Response
+```
+
+---
+
+## 🛠️ Tech Stack  
+- **Languages**: Python  
+- **Libraries**: OpenAI API, FAISS, LangChain (optional)  
+- **Model**: GPT-3.5 Turbo  
+- **Storage**: FAISS (vector database)  
+
+---
+
+## ⚡ Quickstart  
+
+1. Clone the repository:  
+```bash
+git clone https://github.com/mshaheeralam/ragchat.git
+cd ragchat
+```
+
+2. Install dependencies:  
+```bash
+pip install -r requirements.txt
+```
+
+3. Set your OpenAI API key:  
+```bash
+export OPENAI_API_KEY=your_api_key_here
+```
+
+4. Run the chatbot:  
+```bash
+python app.py
+```
+
+---
+
+## 📂 Suggested Repository Structure  
+```
+ragchat/
+  ├─ data/              # Documents to embed
+  ├─ embeddings/        # Scripts for generating embeddings
+  ├─ vectorstore/       # FAISS index storage
+  ├─ app.py             # Chatbot entry point
+  ├─ requirements.txt
+  └─ README.md
+```
+
+---
+
+## 🔮 Future Improvements  
+- Add support for other LLMs (Claude, LLaMA, etc.).  
+- Containerize with Docker for reproducible deployment.  
+- Build a lightweight web UI for interaction.  
